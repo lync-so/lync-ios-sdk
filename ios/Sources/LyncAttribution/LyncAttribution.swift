@@ -35,6 +35,44 @@ public class LyncAttribution {
         }
     }
     
+    // MARK: - Shared Instance
+    
+    private static var _shared: LyncAttribution?
+    
+    /// Shared instance of LyncAttribution (must be configured first)
+    public static var shared: LyncAttribution {
+        guard let shared = _shared else {
+            fatalError("❌ LyncAttribution.shared not configured. Call LyncAttribution.configure() first.")
+        }
+        return shared
+    }
+    
+    /// Configure the shared instance from Info.plist
+    public static func configure() {
+        _shared = LyncAttribution()
+    }
+    
+    /// Configure the shared instance with custom config
+    public static func configure(config: Config) {
+        _shared = LyncAttribution(config: config)
+    }
+    
+    /// Configure the shared instance with parameters
+    public static func configure(
+        apiBaseURL: String,
+        entityId: String,
+        apiKey: String,
+        debug: Bool = false
+    ) {
+        let config = Config(
+            apiBaseURL: apiBaseURL,
+            entityId: entityId,
+            apiKey: apiKey,
+            debug: debug
+        )
+        _shared = LyncAttribution(config: config)
+    }
+    
     // MARK: - Event Types
     
     public enum EventType: String {
@@ -60,10 +98,49 @@ public class LyncAttribution {
         let screenHeight: Int
         let deviceType: String
         
+        // Enhanced device fingerprinting
+        let screenScale: Double
+        let screenBrightness: Double
+        let batteryLevel: Float?
+        let batteryState: String
+        let diskSpace: (total: Int64, free: Int64)?
+        let memoryUsage: (total: Int64, used: Int64)?
+        let processorCount: Int
+        let systemUptime: TimeInterval
+        let preferredLanguages: [String]
+        let regionCode: String?
+        let currencyCode: String?
+        let calendarIdentifier: String
+        let deviceOrientation: String
+        let interfaceOrientation: String
+        let userInterfaceIdiom: String
+        
+        // Network information
+        let networkType: String
+        let carrierName: String?
+        let carrierCountryCode: String?
+        let mobileNetworkCode: String?
+        let mobileCountryCode: String?
+        
+        // Accessibility & Capabilities
+        let isVoiceOverRunning: Bool
+        let isClosedCaptioningEnabled: Bool
+        let isReduceMotionEnabled: Bool
+        let preferredContentSizeCategory: String
+        
+        // Jailbreak detection indicators
+        let isJailbroken: Bool
+        let suspiciousPaths: [String]
+        
         static func current() -> DeviceInfo {
             let device = UIDevice.current
             let screen = UIScreen.main
             let mainBundle = Bundle.main
+            let processInfo = ProcessInfo.processInfo
+            let locale = Locale.current
+            
+            // Enable battery monitoring for accurate readings
+            device.isBatteryMonitoringEnabled = true
             
             return DeviceInfo(
                 deviceModel: Self.getDeviceModel(),
@@ -74,10 +151,44 @@ public class LyncAttribution {
                 vendorId: device.identifierForVendor?.uuidString,
                 advertisingId: Self.getAdvertisingId(),
                 timezone: TimeZone.current.identifier,
-                language: Locale.current.identifier,
+                language: locale.identifier,
                 screenWidth: Int(screen.bounds.width * screen.scale),
                 screenHeight: Int(screen.bounds.height * screen.scale),
-                deviceType: device.userInterfaceIdiom == .pad ? "tablet" : "phone"
+                deviceType: device.userInterfaceIdiom == .pad ? "tablet" : "phone",
+                
+                // Enhanced fingerprinting
+                screenScale: Double(screen.scale),
+                screenBrightness: Double(screen.brightness),
+                batteryLevel: device.batteryLevel >= 0 ? device.batteryLevel : nil,
+                batteryState: Self.getBatteryState(device.batteryState),
+                diskSpace: Self.getDiskSpace(),
+                memoryUsage: Self.getMemoryUsage(),
+                processorCount: processInfo.processorCount,
+                systemUptime: processInfo.systemUptime,
+                preferredLanguages: locale.preferredLanguages,
+                regionCode: locale.regionCode,
+                currencyCode: locale.currencyCode,
+                calendarIdentifier: locale.calendar.identifier,
+                deviceOrientation: Self.getDeviceOrientation(device.orientation),
+                interfaceOrientation: Self.getInterfaceOrientation(),
+                userInterfaceIdiom: Self.getUserInterfaceIdiom(device.userInterfaceIdiom),
+                
+                // Network information
+                networkType: Self.getNetworkType(),
+                carrierName: Self.getCarrierInfo().name,
+                carrierCountryCode: Self.getCarrierInfo().countryCode,
+                mobileNetworkCode: Self.getCarrierInfo().mobileNetworkCode,
+                mobileCountryCode: Self.getCarrierInfo().mobileCountryCode,
+                
+                // Accessibility
+                isVoiceOverRunning: UIAccessibility.isVoiceOverRunning,
+                isClosedCaptioningEnabled: UIAccessibility.isClosedCaptioningEnabled,
+                isReduceMotionEnabled: UIAccessibility.isReduceMotionEnabled,
+                preferredContentSizeCategory: UIApplication.shared.preferredContentSizeCategory.rawValue,
+                
+                // Security
+                isJailbroken: Self.detectJailbreak().isJailbroken,
+                suspiciousPaths: Self.detectJailbreak().suspiciousPaths
             )
         }
         
@@ -106,6 +217,164 @@ public class LyncAttribution {
             
             let idfa = ASIdentifierManager.shared().advertisingIdentifier
             return idfa.uuidString != "00000000-0000-0000-0000-000000000000" ? idfa.uuidString : nil
+        }
+        
+        private static func getBatteryState(_ state: UIDevice.BatteryState) -> String {
+            switch state {
+            case .unknown: return "unknown"
+            case .unplugged: return "unplugged"
+            case .charging: return "charging"
+            case .full: return "full"
+            @unknown default: return "unknown"
+            }
+        }
+        
+        private static func getDiskSpace() -> (total: Int64, free: Int64)? {
+            guard let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first else {
+                return nil
+            }
+            
+            do {
+                let attributes = try FileManager.default.attributesOfFileSystem(forPath: path)
+                let total = attributes[.systemSize] as? Int64 ?? 0
+                let free = attributes[.systemFreeSize] as? Int64 ?? 0
+                return (total: total, free: free)
+            } catch {
+                return nil
+            }
+        }
+        
+        private static func getMemoryUsage() -> (total: Int64, used: Int64)? {
+            var info = mach_task_basic_info()
+            var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+            
+            let result: kern_return_t = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                    task_info(mach_task_self_,
+                             task_flavor_t(MACH_TASK_BASIC_INFO),
+                             $0,
+                             &count)
+                }
+            }
+            
+            guard result == KERN_SUCCESS else { return nil }
+            
+            let total = Int64(ProcessInfo.processInfo.physicalMemory)
+            let used = Int64(info.resident_size)
+            
+            return (total: total, used: used)
+        }
+        
+        private static func getDeviceOrientation(_ orientation: UIDeviceOrientation) -> String {
+            switch orientation {
+            case .portrait: return "portrait"
+            case .portraitUpsideDown: return "portrait-upside-down"
+            case .landscapeLeft: return "landscape-left"
+            case .landscapeRight: return "landscape-right"
+            case .faceUp: return "face-up"
+            case .faceDown: return "face-down"
+            case .unknown: return "unknown"
+            @unknown default: return "unknown"
+            }
+        }
+        
+        private static func getInterfaceOrientation() -> String {
+            if #available(iOS 13.0, *) {
+                guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+                    return "unknown"
+                }
+                
+                switch windowScene.interfaceOrientation {
+                case .portrait: return "portrait"
+                case .portraitUpsideDown: return "portrait-upside-down"
+                case .landscapeLeft: return "landscape-left"
+                case .landscapeRight: return "landscape-right"
+                case .unknown: return "unknown"
+                @unknown default: return "unknown"
+                }
+            } else {
+                let orientation = UIApplication.shared.statusBarOrientation
+                switch orientation {
+                case .portrait: return "portrait"
+                case .portraitUpsideDown: return "portrait-upside-down"
+                case .landscapeLeft: return "landscape-left"
+                case .landscapeRight: return "landscape-right"
+                case .unknown: return "unknown"
+                @unknown default: return "unknown"
+                }
+            }
+        }
+        
+        private static func getUserInterfaceIdiom(_ idiom: UIUserInterfaceIdiom) -> String {
+            switch idiom {
+            case .phone: return "phone"
+            case .pad: return "pad"
+            case .tv: return "tv"
+            case .carPlay: return "carPlay"
+            case .mac: return "mac"
+            case .unspecified: return "unspecified"
+            @unknown default: return "unknown"
+            }
+        }
+        
+        private static func getNetworkType() -> String {
+            // This is a simplified version - in a real implementation you'd use 
+            // Network.framework or Reachability to get detailed network info
+            return "unknown" // Would implement with Network.framework
+        }
+        
+        private static func getCarrierInfo() -> (name: String?, countryCode: String?, mobileNetworkCode: String?, mobileCountryCode: String?) {
+            // Simplified carrier info - would use CoreTelephony framework
+            return (name: nil, countryCode: nil, mobileNetworkCode: nil, mobileCountryCode: nil)
+        }
+        
+        private static func detectJailbreak() -> (isJailbroken: Bool, suspiciousPaths: [String]) {
+            let suspiciousPaths = [
+                "/Applications/Cydia.app",
+                "/Library/MobileSubstrate/MobileSubstrate.dylib",
+                "/bin/bash",
+                "/usr/sbin/sshd",
+                "/etc/apt",
+                "/private/var/lib/apt/",
+                "/private/var/lib/cydia",
+                "/private/var/mobile/Library/SBSettings/Themes",
+                "/Library/MobileSubstrate/DynamicLibraries/LiveClock.plist",
+                "/System/Library/LaunchDaemons/com.ikey.bbot.plist",
+                "/System/Library/LaunchDaemons/com.saurik.Cydia.Startup.plist",
+                "/var/cache/apt",
+                "/var/lib/apt",
+                "/var/lib/cydia",
+                "/usr/bin/sshd",
+                "/usr/libexec/sftp-server",
+                "/usr/sbin/sshd",
+                "/etc/ssh/sshd_config",
+                "/private/var/tmp/cydia.log"
+            ]
+            
+            var foundPaths: [String] = []
+            var isJailbroken = false
+            
+            for path in suspiciousPaths {
+                if FileManager.default.fileExists(atPath: path) {
+                    foundPaths.append(path)
+                    isJailbroken = true
+                }
+            }
+            
+            // Additional jailbreak detection methods
+            if !isJailbroken {
+                // Check if we can write to system directories
+                do {
+                    try "test".write(toFile: "/private/jailbreak.txt", atomically: true, encoding: .utf8)
+                    try FileManager.default.removeItem(atPath: "/private/jailbreak.txt")
+                    isJailbroken = true
+                    foundPaths.append("/private/write-test")
+                } catch {
+                    // Normal behavior - we can't write to system directories
+                }
+            }
+            
+            return (isJailbroken: isJailbroken, suspiciousPaths: foundPaths)
         }
     }
     
@@ -167,6 +436,47 @@ public class LyncAttribution {
             print("🚀 LyncAttribution initialized")
             print("📍 API URL: \(config.apiBaseURL)")
             print("🏢 Entity ID: \(config.entityId)")
+        }
+    }
+    
+    // MARK: - Convenience Initializer from Plist
+    
+    /// Initialize LyncAttribution from Info.plist configuration
+    /// Expects these keys in Info.plist:
+    /// - LyncAttributionAPIBaseURL (String)
+    /// - LyncAttributionEntityID (String)
+    /// - LyncAttributionAPIKey (String)
+    /// - LyncAttributionDebug (Bool, optional)
+    public convenience init() {
+        guard let infoDictionary = Bundle.main.infoDictionary else {
+            fatalError("❌ LyncAttribution: Info.plist not found")
+        }
+        
+        guard let apiBaseURL = infoDictionary["LyncAttributionAPIBaseURL"] as? String else {
+            fatalError("❌ LyncAttribution: Missing LyncAttributionAPIBaseURL in Info.plist")
+        }
+        
+        guard let entityId = infoDictionary["LyncAttributionEntityID"] as? String else {
+            fatalError("❌ LyncAttribution: Missing LyncAttributionEntityID in Info.plist")
+        }
+        
+        guard let apiKey = infoDictionary["LyncAttributionAPIKey"] as? String else {
+            fatalError("❌ LyncAttribution: Missing LyncAttributionAPIKey in Info.plist")
+        }
+        
+        let debug = infoDictionary["LyncAttributionDebug"] as? Bool ?? false
+        
+        let config = Config(
+            apiBaseURL: apiBaseURL,
+            entityId: entityId,
+            apiKey: apiKey,
+            debug: debug
+        )
+        
+        self.init(config: config)
+        
+        if debug {
+            print("📋 LyncAttribution loaded from Info.plist")
         }
     }
     
@@ -245,12 +555,13 @@ public class LyncAttribution {
         let deviceInfo = DeviceInfo.current()
         let appContext = AppContext.current()
         
-        // Build payload
+        // Build comprehensive payload with enhanced device fingerprinting
         var payload: [String: Any] = [
             "entity_id": config.entityId,
             "event_type": type.rawValue,
             "event_name": name,
             "device_info": [
+                // Basic device info
                 "platform": deviceInfo.platform,
                 "device_model": deviceInfo.deviceModel,
                 "device_name": deviceInfo.deviceName,
@@ -263,7 +574,45 @@ public class LyncAttribution {
                 "language": deviceInfo.language,
                 "screen_width": deviceInfo.screenWidth,
                 "screen_height": deviceInfo.screenHeight,
-                "device_type": deviceInfo.deviceType
+                "device_type": deviceInfo.deviceType,
+                
+                // Enhanced device fingerprinting
+                "screen_scale": deviceInfo.screenScale,
+                "screen_brightness": deviceInfo.screenBrightness,
+                "battery_level": deviceInfo.batteryLevel as Any,
+                "battery_state": deviceInfo.batteryState,
+                "processor_count": deviceInfo.processorCount,
+                "system_uptime": deviceInfo.systemUptime,
+                "preferred_languages": deviceInfo.preferredLanguages,
+                "region_code": deviceInfo.regionCode as Any,
+                "currency_code": deviceInfo.currencyCode as Any,
+                "calendar_identifier": deviceInfo.calendarIdentifier,
+                "device_orientation": deviceInfo.deviceOrientation,
+                "interface_orientation": deviceInfo.interfaceOrientation,
+                "user_interface_idiom": deviceInfo.userInterfaceIdiom,
+                
+                // Storage & Memory
+                "disk_total": deviceInfo.diskSpace?.total as Any,
+                "disk_free": deviceInfo.diskSpace?.free as Any,
+                "memory_total": deviceInfo.memoryUsage?.total as Any,
+                "memory_used": deviceInfo.memoryUsage?.used as Any,
+                
+                // Network information
+                "network_type": deviceInfo.networkType,
+                "carrier_name": deviceInfo.carrierName as Any,
+                "carrier_country_code": deviceInfo.carrierCountryCode as Any,
+                "mobile_network_code": deviceInfo.mobileNetworkCode as Any,
+                "mobile_country_code": deviceInfo.mobileCountryCode as Any,
+                
+                // Accessibility & Capabilities
+                "is_voice_over_running": deviceInfo.isVoiceOverRunning,
+                "is_closed_captioning_enabled": deviceInfo.isClosedCaptioningEnabled,
+                "is_reduce_motion_enabled": deviceInfo.isReduceMotionEnabled,
+                "preferred_content_size_category": deviceInfo.preferredContentSizeCategory,
+                
+                // Security indicators
+                "is_jailbroken": deviceInfo.isJailbroken,
+                "suspicious_paths": deviceInfo.suspiciousPaths
             ],
             "app_context": [
                 "install_time": appContext.installTime as Any,
@@ -373,6 +722,74 @@ public class LyncAttribution {
         } catch {
             completion(.failure(error))
         }
+    }
+}
+
+// MARK: - Static Convenience Methods
+
+extension LyncAttribution {
+    
+    /// Track app install using shared instance
+    public static func trackInstall(
+        clickId: String? = nil,
+        customProperties: [String: Any]? = nil,
+        completion: @escaping (Result<Void, Error>) -> Void = { _ in }
+    ) {
+        shared.trackInstall(
+            clickId: clickId,
+            customProperties: customProperties,
+            completion: completion
+        )
+    }
+    
+    /// Track user registration using shared instance
+    public static func trackRegistration(
+        customerId: String,
+        customerEmail: String? = nil,
+        customerName: String? = nil,
+        customProperties: [String: Any]? = nil,
+        completion: @escaping (Result<Void, Error>) -> Void = { _ in }
+    ) {
+        shared.trackRegistration(
+            customerId: customerId,
+            customerEmail: customerEmail,
+            customerName: customerName,
+            customProperties: customProperties,
+            completion: completion
+        )
+    }
+    
+    /// Track custom event using shared instance
+    public static func trackEvent(
+        type: EventType,
+        name: String,
+        clickId: String? = nil,
+        customerId: String? = nil,
+        customerEmail: String? = nil,
+        customerName: String? = nil,
+        customProperties: [String: Any]? = nil,
+        completion: @escaping (Result<Void, Error>) -> Void = { _ in }
+    ) {
+        shared.trackEvent(
+            type: type,
+            name: name,
+            clickId: clickId,
+            customerId: customerId,
+            customerEmail: customerEmail,
+            customerName: customerName,
+            customProperties: customProperties,
+            completion: completion
+        )
+    }
+    
+    /// Set click ID for attribution using shared instance
+    public static func setClickId(_ clickId: String) {
+        shared.setClickId(clickId)
+    }
+    
+    /// Handle deep link for attribution using shared instance
+    public static func handleDeepLink(_ url: URL) -> Bool {
+        shared.handleDeepLink(url)
     }
 }
 
