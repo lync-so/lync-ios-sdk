@@ -1,7 +1,18 @@
 import Foundation
 
-public enum EventType: String {
-    case install = "install"
-    case registration = "registration"
-    case custom = "custom"
+public enum EventType {
+    case install
+    case registration
+    case custom(String)
+    
+    var rawValue: String {
+        switch self {
+        case .install:
+            return "install"
+        case .registration:
+            return "registration"
+        case .custom(_):
+            return "custom"
+        }
+    }
 } 

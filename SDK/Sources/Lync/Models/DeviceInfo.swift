@@ -1,5 +1,8 @@
 import Foundation
 import UIKit
+import AdSupport
+import AppTrackingTransparency
+import Darwin
 
 public struct DeviceInfo {
     let platform: String = "ios"
@@ -145,20 +148,20 @@ public struct DeviceInfo {
             memoryUsage: DeviceUtils.getMemoryUsage(),
             processorCount: processInfo.processorCount,
             systemUptime: processInfo.systemUptime,
-            preferredLanguages: locale.preferredLanguages,
+            preferredLanguages: Locale.preferredLanguages,
             regionCode: locale.regionCode,
             currencyCode: locale.currencyCode,
-            calendarIdentifier: locale.calendar.identifier,
+            calendarIdentifier: locale.calendar.identifier.rawValue,
             deviceOrientation: DeviceUtils.getDeviceOrientation(device.orientation),
             interfaceOrientation: DeviceUtils.getInterfaceOrientation(),
             userInterfaceIdiom: DeviceUtils.getUserInterfaceIdiom(device.userInterfaceIdiom),
             
             // Network information
-            networkType: NetworkUtils.getNetworkType(),
-            carrierName: NetworkUtils.getCarrierInfo().name,
-            carrierCountryCode: NetworkUtils.getCarrierInfo().countryCode,
-            mobileNetworkCode: NetworkUtils.getCarrierInfo().mobileNetworkCode,
-            mobileCountryCode: NetworkUtils.getCarrierInfo().mobileCountryCode,
+            networkType: "unknown",
+            carrierName: nil,
+            carrierCountryCode: nil,
+            mobileNetworkCode: nil,
+            mobileCountryCode: nil,
             
             // Accessibility
             isVoiceOverRunning: UIAccessibility.isVoiceOverRunning,
@@ -169,15 +172,24 @@ public struct DeviceInfo {
 
             
             // Fingerprints
-            screenFingerprint: FingerprintUtils.generateScreenFingerprint(),
-            audioFingerprint: FingerprintUtils.generateAudioFingerprint(),
-            webCompatibleFingerprint: FingerprintUtils.generateWebCompatibleFingerprint()
+            screenFingerprint: generateScreenFingerprint(),
+            audioFingerprint: generateAudioFingerprint(),
+            webCompatibleFingerprint: generateWebCompatibleFingerprint()
         )
     }
     
-
+    // MARK: - Fingerprint Utility Methods
     
-
-
-
+    private static func generateScreenFingerprint() -> String {
+        let screen = UIScreen.main
+        return "\(Int(screen.bounds.width))x\(Int(screen.bounds.height))@\(screen.scale)x"
+    }
+    
+    private static func generateAudioFingerprint() -> String {
+        return "audio_unknown"
+    }
+    
+    private static func generateWebCompatibleFingerprint() -> String {
+        return "web_unknown"
+    }
 } 

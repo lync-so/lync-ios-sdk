@@ -35,14 +35,12 @@ import Network
     /// - Parameter config: Configuration object containing API key and base URL
     @objc public func configure(with config: Config) {
         self.config = config
-        self.deviceInfo = DeviceInfo()
-        self.appContext = AppContext()
+        self.deviceInfo = DeviceInfo.current()
+        self.appContext = AppContext.current()
         
         // Extract click_id and lync_id from config if present
-        if let url = config.baseURL {
-            self.clickId = extractClickId(from: url)
-            self.lyncId = extractLyncId(from: url)
-        }
+        self.clickId = extractClickId(from: config.baseURL)
+        self.lyncId = extractLyncId(from: config.baseURL)
         
         #if DEBUG
         print("🔗 Lync SDK initialized with base URL: \(config.baseURL.absoluteString)")
@@ -127,9 +125,17 @@ import Network
         }
         
         // Build the payload
+        let eventName: String
+        switch type {
+        case .custom(let customEventName):
+            eventName = customEventName
+        default:
+            eventName = type.rawValue
+        }
+        
         var payload: [String: Any] = [
             "event_type": type.rawValue,
-            "event_name": type.rawValue == "custom" ? eventName : type.rawValue, // Add event_name
+            "event_name": eventName,
             "timestamp": ISO8601DateFormatter().string(from: Date()),
             "device_info": deviceInfo.toDictionary(),
             "app_context": appContext.toDictionary()
