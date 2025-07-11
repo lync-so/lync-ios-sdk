@@ -25,12 +25,12 @@ let package = Package(
         .target(
             name: "Lync",
             dependencies: [],
-            path: "Sources/Lync"
+            path: "SDK/Sources/Lync"
         ),
         .testTarget(
             name: "LyncTests",
             dependencies: ["Lync"],
-            path: "Tests/LyncTests"
+            path: "SDK/Tests/LyncTests"
         ),
     ]
 ) 
