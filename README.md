@@ -1,26 +1,20 @@
 # Lync iOS SDK
 
-Lightweight attribution tracking for iOS apps. Track app installs, user registrations, and custom events, matching them to original click data from your marketing campaigns.
+Super lean attribution tracking for iOS apps. Track app installs, user registrations, and custom events with just a few lines of code.
 
 ## Features
 
 - 📱 **App Install Tracking** - Track when users install your app
 - 🙋 **Registration Tracking** - Track when users sign up
-- 🎯 **Custom Event Tracking** - Track any custom conversion events
+- 🎯 **Custom Event Tracking** - Track any custom events
 - 🔗 **Attribution Matching** - Match app events to original click data
 - 🛡️ **Privacy Compliant** - Respects iOS 14+ App Tracking Transparency
-- 🏎️ **Lightweight** - Single file, minimal dependencies
-- 👤 **Customer Info** - Send customer id, email, name, and avatar URL with any event
+- 🏎️ **Ultra Lightweight** - Minimal dependencies, clean codebase
+- 👤 **User Info** - Send user id and email with any event
 
 ## Installation
 
-### Option 1: Manual Installation
-
-1. Download `Lync.swift` and `Config.swift`
-2. Drag them into your Xcode project
-3. Make sure to add them to your target
-
-### Option 2: Swift Package Manager (GitHub)
+### Swift Package Manager (Recommended)
 
 **In Xcode:**
 1. Go to **File** → **Add Package Dependencies**
@@ -28,45 +22,14 @@ Lightweight attribution tracking for iOS apps. Track app installs, user registra
 3. Choose version (or branch)
 4. Add to your target
 
-**In Package.swift:**
-```swift
-dependencies: [
-    .package(url: "https://github.com/YOUR_USERNAME/lync-ios-sdk", from: "0.0.1")
-]
-```
-
-**Then import in your target:**
-```swift
-.target(
-    name: "YourApp",
-    dependencies: ["Lync"]
-)
-```
+**Or add locally:**
+1. Click **Add Local...** in Package Dependencies
+2. Select the `lync-ios-sdk` folder
+3. Add to your target
 
 ## Quick Start
 
-### 1. Add to Your Project
-
-**Swift Package Manager (Recommended):**
-```
-https://github.com/lync-so/lync-ios-sdk.git
-Version: 0.0.1
-```
-
-### 2. Configure in Info.plist
-
-Add these keys to your app's `Info.plist`:
-
-```xml
-<key>LyncAPIBaseURL</key>
-<string>https://your-api-domain.com</string>
-<key>LyncAPIKey</key>
-<string>sk_live_your_api_key_here</string>
-<key>LyncDebug</key>
-<true/>
-```
-
-### 3. Initialize in AppDelegate
+### 1. Initialize Once
 
 ```swift
 import Lync
@@ -76,108 +39,118 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        // Configure programmatically
-        let config = Config(
+        // Initialize Lync (only need to do this once)
+        Lync.shared.initialize(
             apiKey: "sk_live_your_api_key_here",
-            baseURL: URL(string: "https://your-api-domain.com")!,
-            debug: true
-        )
-        Lync.shared.configure(with: config)
-        
-        // Track app install (with optional customer info)
-        Lync.shared.trackInstall(
-            customerExternalId: "user123",
-            customerEmail: "user@example.com",
-            customerAvatarUrl: "https://example.com/avatar.png",
-            customerName: "Jane Doe"
+            baseURL: "https://api.lync.so",  // Optional, defaults to https://api.lync.so
+            debug: true                      // Optional, defaults to false
         )
         
-        return true
-    }
-    
-    // Handle deep links for attribution
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-        // (Deep link handling code here)
+        // Track app install
+        Lync.shared.trackInstall(userId: "user123", userEmail: "user@example.com")
+        
         return true
     }
 }
 ```
 
-### 4. Track Events (with Customer Info)
+### 2. Track Events Anywhere
 
 ```swift
 // Track user registration
-Lync.shared.trackRegistration(
-    customerExternalId: "user123",
-    customerEmail: "user@example.com",
-    customerAvatarUrl: "https://example.com/avatar.png",
-    customerName: "Jane Doe"
-)
+Lync.shared.trackRegistration(userId: "user123", userEmail: "user@example.com")
 
 // Track custom events
-Lync.shared.trackCustomEvent(
-    "premium_upgrade",
-    properties: ["plan": "yearly"],
-    customerExternalId: "user123",
-    customerEmail: "user@example.com",
-    customerAvatarUrl: "https://example.com/avatar.png",
-    customerName: "Jane Doe"
+Lync.shared.track("purchase", properties: ["amount": 29.99, "currency": "USD"])
+Lync.shared.track("button_clicked", properties: ["button": "sign_up"])
+Lync.shared.track("level_completed", properties: ["level": 5])
+
+// Or use convenience methods
+Lync.shared.trackEvent("premium_upgrade", properties: ["plan": "yearly"])
+```
+
+## API Reference
+
+### Initialization
+
+```swift
+Lync.shared.initialize(
+    apiKey: "sk_live_your_api_key_here",
+    baseURL: "https://api.lync.so",  // Optional
+    debug: true                      // Optional
 )
 ```
 
-## Alternative Configuration
-
-If you prefer Info.plist configuration, you can still use it (see previous instructions), but programmatic configuration is recommended for passing customer info.
-
-## Attribution Flow
-
-The attribution system works like this:
-
-1. **User clicks your ad/link** → Your system stores click data with `click_id`
-2. **User goes to App Store** → (no data can be passed)
-3. **User installs app** → iOS SDK sends install event with device fingerprinting
-4. **Your system matches** install to stored click data based on timing + device info
-
-### With Deep Links (Recommended)
-
-If your marketing campaigns use deep links that open your app after install:
+### Tracking Methods
 
 ```swift
-// In AppDelegate or SceneDelegate
-func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-    // Extract click_id from deep link
-    // (Deep link handling code here)
-    return true
-}
+// Main tracking method
+Lync.shared.track(
+    _ event: String,
+    properties: [String: Any]? = nil,
+    userId: String? = nil,
+    userEmail: String? = nil
+)
+
+// Convenience methods
+Lync.shared.trackInstall(userId: String? = nil, userEmail: String? = nil)
+Lync.shared.trackRegistration(userId: String? = nil, userEmail: String? = nil)
+Lync.shared.trackEvent(_ event: String, properties: [String: Any]? = nil)
 ```
 
-## Attribution Matching
+## Usage Examples
 
-The system uses several methods to match app installs to clicks:
+### Basic Tracking
 
-### 1. Direct Attribution (Best)
-- **Deep Links**: When users click a link that opens your app after install
-- **Click ID**: Passed via URL parameter `?click_id=abc123`
+```swift
+// App lifecycle events
+Lync.shared.track("app_opened")
+Lync.shared.track("app_backgrounded")
 
-### 2. Probabilistic Attribution (Fallback)
-- **Device Fingerprinting**: iOS version, device model, timezone, etc.
-- **Timing**: Install time vs click time correlation
-- **IP Address**: Network-based matching
+// User actions
+Lync.shared.track("button_clicked", properties: ["button": "sign_up"])
+Lync.shared.track("screen_viewed", properties: ["screen": "onboarding"])
 
-## Device Information Collected
+// Business events
+Lync.shared.track("purchase", properties: [
+    "amount": 29.99,
+    "currency": "USD",
+    "product_id": "premium_plan"
+])
+```
+
+### With User Information
+
+```swift
+// Track with user context
+Lync.shared.track(
+    "subscription_started",
+    properties: ["plan": "yearly"],
+    userId: "user123",
+    userEmail: "user@example.com"
+)
+
+// Install tracking with user info
+Lync.shared.trackInstall(
+    userId: "user123",
+    userEmail: "user@example.com"
+)
+```
+
+## Device Information
 
 The SDK automatically collects this device information for attribution:
 
-```swift
+```json
 {
   "platform": "ios",
   "device_model": "iPhone14,3",
-  "device_name": "iPhone 13 Pro", 
+  "device_name": "iPhone 13 Pro",
   "os_version": "17.0.1",
   "app_version": "1.0.0",
   "bundle_id": "com.yourapp.name",
-  "vendor_id": "ABC123-DEF456", // identifierForVendor
-  "advertising_id": "XYZ789", // IDFA (if permission granted)
+  "vendor_id": "ABC123-DEF456",
+  "advertising_id": "XYZ789",
   "timezone": "America/New_York",
   "language": "en-US",
   "screen_width": 1170,
@@ -198,170 +171,29 @@ import AppTrackingTransparency
 // Request tracking permission (optional, but improves attribution)
 if #available(iOS 14, *) {
     ATTrackingManager.requestTrackingAuthorization { status in
-        switch status {
-        case .authorized:
-            print("📱 Tracking authorized - IDFA available")
-        case .denied, .restricted, .notDetermined:
-            print("📱 Tracking not authorized - using other signals")
-        @unknown default:
-            break
-        }
+        // Initialize Lync after permission is granted
+        Lync.shared.initialize(apiKey: "your-api-key")
     }
 }
 ```
 
-### Data Collection
+## Attribution Flow
 
-- ✅ **No PII collected by default** (unless you provide customer info)
-- ✅ **Respects user privacy settings**
-- ✅ **No persistent tracking identifiers** (except IDFA with permission)
-- ✅ **All data stored securely** in your own database
+1. **User clicks your ad/link** → Your system stores click data
+2. **User installs app** → iOS SDK sends install event with device fingerprinting
+3. **Your system matches** install to stored click data based on timing + device info
 
-## API Integration
+## Requirements
 
-The SDK sends data to your `/api/track/mobile` endpoint. Make sure your API is configured to handle these requests.
-
-### Example API Response
-
-```json
-{
-  "success": true,
-  "interaction_id": "abc123",
-  "click_id": "def456",
-  "message": "install event tracked successfully",
-  "attribution": {
-    "entity_id": "your-entity-id",
-    "source_type": "app_install",
-    "utm_campaign": "summer_campaign",
-    "utm_source": "google_ads"
-  }
-}
-```
-
-## Advanced Usage
-
-### Custom Configuration
-
-```swift
-let config = Config(
-    apiKey: "sk_test_123",
-    baseURL: URL(string: "https://api.yourdomain.com")!,
-    debug: false // Disable debug logs in production
-)
-
-Lync.shared.configure(with: config)
-```
-
-### Batch Event Tracking
-
-For apps that need to track multiple events:
-
-```swift
-// Track multiple events for the same user
-let userId = "user123"
-
-Lync.shared.trackCustomEvent("Onboarding Complete", customerExternalId: userId)
-Lync.shared.trackCustomEvent("First Purchase", customerExternalId: userId)
-Lync.shared.trackCustomEvent("Subscription", customerExternalId: userId)
-```
-
-### Error Handling
-
-```swift
-// Example error handling for event tracking
-Lync.shared.trackInstall { result in
-    switch result {
-    case .success:
-        print("✅ Event tracked")
-    case .failure(let error):
-        print("❌ Tracking failed: \(error)")
-    }
-}
-```
-
-## Testing
-
-### Debug Mode
-
-Enable debug mode to see detailed logs:
-
-```swift
-let config = Config(
-    apiKey: "sk_test_123",
-    baseURL: URL(string: "https://your-test-api.com")!,
-    debug: true // Enable detailed logging
-)
-Lync.shared.configure(with: config)
-```
-
-You'll see logs like:
-```
-🔗 Lync SDK initialized with base URL: https://your-api.com
-🔗 Click ID: ...
-🔗 Lync ID: ...
-🔗 Sending event to: https://your-api.com/api/track/mobile
-🔗 Payload: {...}
-✅ Event sent successfully
-```
-
-### Testing Attribution
-
-1. **Test install tracking**: Delete and reinstall your app
-2. **Test with click_id**: Use a test deep link with `?click_id=test123`
-3. **Test registration**: Sign up with a test account
-4. **Check your analytics**: Verify events appear in your dashboard
-
-## Migration Guide
-
-### From Other SDKs
-
-If you're migrating from another attribution SDK:
-
-```swift
-// Replace your old SDK initialization
-// OLD: Adjust.appDidLaunch(adjustConfig)
-// NEW: 
-Lync.shared.trackInstall()
-
-// Replace event tracking
-// OLD: Adjust.trackEvent(adjustEvent)  
-// NEW:
-Lync.shared.trackCustomEvent("Event Name")
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Events not appearing in dashboard:**
-- Check your API key is correct
-- Verify your API endpoint is working
-- Enable debug mode to see network requests
-- Check your server logs
-
-**Attribution not working:**
-- Ensure deep links are configured correctly
-- Test with `click_id` parameter manually
-- Verify click data is being stored in your system
-
-**Build errors:**
-- Make sure to import required frameworks: `AdSupport`, `AppTrackingTransparency`
-- Check iOS deployment target (minimum iOS 12.0)
-
-### Debug Checklist
-
-- [ ] SDK initialized with correct `apiKey` and `baseURL`
-- [ ] Network connection available
-- [ ] API endpoint responding with 200 status
-- [ ] Debug mode enabled to see detailed logs
-- [ ] Deep links configured in Info.plist (if using)
+- iOS 12.0+
+- Mac Catalyst 13.0+
+- Swift 5.7+
 
 ## Support
 
-- 📖 **Documentation**: [Link to your docs]
-- 🐛 **Bug Reports**: [Link to issues]
-- 💬 **Discord**: [Link to community]
-- ✉️ **Email**: support@yourdomain.com
+For issues and questions:
+- GitHub Issues: [Create an issue](https://github.com/YOUR_USERNAME/lync-ios-sdk/issues)
+- Email: support@lync.so
 
 ## License
 
