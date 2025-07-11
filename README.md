@@ -44,86 +44,82 @@ dependencies: [
 
 ## Quick Start
 
-### 1. Initialize the SDK
+### 1. Add to Your Project
 
-In your `AppDelegate.swift` or `SceneDelegate.swift`:
+**Swift Package Manager (Recommended):**
+```
+https://github.com/lync-so/lync-ios-sdk.git
+```
+
+### 2. Configure in Info.plist
+
+Add these keys to your app's `Info.plist`:
+
+```xml
+<key>LyncAttributionAPIBaseURL</key>
+<string>https://your-api-domain.com</string>
+<key>LyncAttributionEntityID</key>
+<string>your-entity-id-here</string>
+<key>LyncAttributionAPIKey</key>
+<string>sk_live_your_api_key_here</string>
+<key>LyncAttributionDebug</key>
+<true/>
+```
+
+### 3. Initialize in AppDelegate
 
 ```swift
 import LyncAttribution
 
+@main
 class AppDelegate: UIResponder, UIApplicationDelegate {
-    
-    // Initialize LyncAttribution
-    lazy var attribution = LyncAttribution(config: LyncAttribution.Config(
-        apiBaseURL: "https://yourdomain.com",
-        entityId: "your-entity-id", // Get this from your dashboard
-        apiKey: "your-api-key", // Optional: for authenticated requests
-        debug: true // Set to false in production
-    ))
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        // Track app install on first launch
-        attribution.trackInstall { result in
-            switch result {
-            case .success:
-                print("✅ Install tracked successfully")
-            case .failure(let error):
-                print("❌ Install tracking failed: \(error)")
-            }
-        }
+        // Configure from Info.plist
+        LyncAttribution.configure()
         
+        // Track app install
+        LyncAttribution.trackInstall()
+        
+        return true
+    }
+    
+    // Handle deep links for attribution
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        LyncAttribution.handleDeepLink(url)
         return true
     }
 }
 ```
 
-### 2. Track User Registration
-
-When a user signs up in your app:
+### 4. Track Events
 
 ```swift
-// In your registration/signup view controller
-attribution.trackRegistration(
+// Track user registration
+LyncAttribution.trackRegistration(
     customerId: "user123",
-    customerEmail: "user@example.com",
-    customerName: "John Doe"
-) { result in
-    switch result {
-    case .success:
-        print("✅ Registration tracked")
-    case .failure(let error):
-        print("❌ Registration tracking failed: \(error)")
-    }
-}
-```
-
-### 3. Track Custom Events
-
-Track any custom conversion events:
-
-```swift
-// Track a purchase
-attribution.trackEvent(
-    type: .custom,
-    name: "Purchase",
-    customerId: "user123",
-    customProperties: [
-        "amount": 29.99,
-        "currency": "USD",
-        "product_id": "premium_plan"
-    ]
+    customerEmail: "user@example.com"
 )
 
-// Track subscription
-attribution.trackEvent(
+// Track custom events
+LyncAttribution.trackEvent(
     type: .custom,
-    name: "Subscription",
-    customerId: "user123",
-    customProperties: [
-        "plan": "premium",
-        "billing_cycle": "monthly"
-    ]
+    name: "premium_upgrade",
+    customProperties: ["plan": "yearly"]
+)
+```
+
+## Alternative Configuration
+
+If you prefer programmatic configuration:
+
+```swift
+LyncAttribution.configure(
+    apiBaseURL: "https://your-api-domain.com",
+    entityId: "your-entity-id",
+    apiKey: "sk_live_your_api_key",
+    debug: true
 )
 ```
 

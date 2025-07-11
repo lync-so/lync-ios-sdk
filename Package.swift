@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LyncAttribution",
+    name: "Lync",
     platforms: [
         .iOS(.v12),
         .macCatalyst(.v13)
@@ -12,8 +12,8 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "LyncAttribution",
-            targets: ["LyncAttribution"]
+            name: "Lync",
+            targets: ["Lync"]
         ),
     ],
     dependencies: [
@@ -23,14 +23,14 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         .target(
-            name: "LyncAttribution",
+            name: "Lync",
             dependencies: [],
-            path: "ios/Sources/LyncAttribution"
+            path: "Sources/Lync"
         ),
         .testTarget(
-            name: "LyncAttributionTests",
-            dependencies: ["LyncAttribution"],
-            path: "ios/Tests/LyncAttributionTests"
+            name: "LyncTests",
+            dependencies: ["Lync"],
+            path: "Tests/LyncTests"
         ),
     ]
 ) 

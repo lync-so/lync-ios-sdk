@@ -1,21 +1,21 @@
 import XCTest
-@testable import LyncAttribution
+@testable import Lync
 
-final class LyncAttributionTests: XCTestCase {
+final class LyncTests: XCTestCase {
     
-    var attribution: LyncAttribution!
+    var lync: Lync!
     
     override func setUpWithError() throws {
-        let config = LyncAttribution.Config(
+        let config = Lync.Config(
             apiBaseURL: "https://test.example.com",
             entityId: "test-entity-id",
             debug: true
         )
-        attribution = LyncAttribution(config: config)
+        lync = Lync(config: config)
     }
     
     override func tearDownWithError() throws {
-        attribution = nil
+        lync = nil
         // Clean up UserDefaults
         UserDefaults.standard.removeObject(forKey: "lync_click_id")
         UserDefaults.standard.removeObject(forKey: "lync_install_time")
@@ -26,7 +26,7 @@ final class LyncAttributionTests: XCTestCase {
     func testClickIdStorage() throws {
         let testClickId = "test-click-id-123"
         
-        attribution.setClickId(testClickId)
+        lync.setClickId(testClickId)
         
         let storedClickId = UserDefaults.standard.string(forKey: "lync_click_id")
         XCTAssertEqual(storedClickId, testClickId)
@@ -34,18 +34,18 @@ final class LyncAttributionTests: XCTestCase {
     
     func testDeepLinkClickIdExtraction() throws {
         let urlWithClickId = URL(string: "myapp://open?click_id=abc123&other=param")!
-        let extractedClickId = LyncAttribution.extractClickId(from: urlWithClickId)
+        let extractedClickId = Lync.extractClickId(from: urlWithClickId)
         
         XCTAssertEqual(extractedClickId, "abc123")
         
         let urlWithoutClickId = URL(string: "myapp://open?other=param")!
-        let noClickId = LyncAttribution.extractClickId(from: urlWithoutClickId)
+        let noClickId = Lync.extractClickId(from: urlWithoutClickId)
         
         XCTAssertNil(noClickId)
     }
     
     func testDeviceInfoCreation() throws {
-        let deviceInfo = LyncAttribution.DeviceInfo.current()
+        let deviceInfo = Lync.DeviceInfo.current()
         
         XCTAssertEqual(deviceInfo.platform, "ios")
         XCTAssertFalse(deviceInfo.osVersion.isEmpty)
@@ -55,7 +55,7 @@ final class LyncAttributionTests: XCTestCase {
     }
     
     func testAppContextCreation() throws {
-        let appContext = LyncAttribution.AppContext.current()
+        let appContext = Lync.AppContext.current()
         
         XCTAssertFalse(appContext.sessionId.isEmpty)
         XCTAssertNotNil(appContext.installTime)
@@ -63,7 +63,7 @@ final class LyncAttributionTests: XCTestCase {
     }
     
     func testConfigInitialization() throws {
-        let config = LyncAttribution.Config(
+        let config = Lync.Config(
             apiBaseURL: "https://api.example.com",
             entityId: "entity-123",
             apiKey: "key-456",
