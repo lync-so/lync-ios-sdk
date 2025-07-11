@@ -106,7 +106,7 @@ import UIKit
     
     /// Send event to API
     private func sendEvent(payload: [String: Any], apiKey: String, baseURL: String) {
-        guard let url = URL(string: "\(baseURL)/api/track") else {
+        guard let url = URL(string: "\(baseURL)/api/track/mobile") else {
             print("❌ Invalid API URL")
             return
         }
