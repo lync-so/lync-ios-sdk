@@ -1,4 +1,4 @@
-# LyncAttribution iOS SDK
+# Lync iOS SDK
 
 Lightweight attribution tracking for iOS apps. Track app installs, user registrations, and custom events, matching them to original click data from your marketing campaigns.
 
@@ -10,27 +10,28 @@ Lightweight attribution tracking for iOS apps. Track app installs, user registra
 - 🔗 **Attribution Matching** - Match app events to original click data
 - 🛡️ **Privacy Compliant** - Respects iOS 14+ App Tracking Transparency
 - 🏎️ **Lightweight** - Single file, minimal dependencies
+- 👤 **Customer Info** - Send customer id, email, name, and avatar URL with any event
 
 ## Installation
 
 ### Option 1: Manual Installation
 
-1. Download `LyncAttribution.swift`
-2. Drag it into your Xcode project
-3. Make sure to add it to your target
+1. Download `Lync.swift` and `Config.swift`
+2. Drag them into your Xcode project
+3. Make sure to add them to your target
 
 ### Option 2: Swift Package Manager (GitHub)
 
 **In Xcode:**
 1. Go to **File** → **Add Package Dependencies**
-2. Enter the repository URL: `https://github.com/YOUR_USERNAME/lync-attribution-ios`
+2. Enter the repository URL: `https://github.com/YOUR_USERNAME/lync-ios-sdk`
 3. Choose version (or branch)
 4. Add to your target
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR_USERNAME/lync-attribution-ios", from: "1.0.0")
+    .package(url: "https://github.com/YOUR_USERNAME/lync-ios-sdk", from: "0.0.1")
 ]
 ```
 
@@ -38,7 +39,7 @@ dependencies: [
 ```swift
 .target(
     name: "YourApp",
-    dependencies: ["LyncAttribution"]
+    dependencies: ["Lync"]
 )
 ```
 
@@ -49,6 +50,7 @@ dependencies: [
 **Swift Package Manager (Recommended):**
 ```
 https://github.com/lync-so/lync-ios-sdk.git
+Version: 0.0.1
 ```
 
 ### 2. Configure in Info.plist
@@ -56,72 +58,76 @@ https://github.com/lync-so/lync-ios-sdk.git
 Add these keys to your app's `Info.plist`:
 
 ```xml
-<key>LyncAttributionAPIBaseURL</key>
+<key>LyncAPIBaseURL</key>
 <string>https://your-api-domain.com</string>
-<key>LyncAttributionEntityID</key>
-<string>your-entity-id-here</string>
-<key>LyncAttributionAPIKey</key>
+<key>LyncAPIKey</key>
 <string>sk_live_your_api_key_here</string>
-<key>LyncAttributionDebug</key>
+<key>LyncDebug</key>
 <true/>
 ```
 
 ### 3. Initialize in AppDelegate
 
 ```swift
-import LyncAttribution
+import Lync
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        // Configure from Info.plist
-        LyncAttribution.configure()
+        // Configure programmatically
+        let config = Config(
+            apiKey: "sk_live_your_api_key_here",
+            baseURL: URL(string: "https://your-api-domain.com")!,
+            debug: true
+        )
+        Lync.shared.configure(with: config)
         
-        // Track app install
-        LyncAttribution.trackInstall()
+        // Track app install (with optional customer info)
+        Lync.shared.trackInstall(
+            customerExternalId: "user123",
+            customerEmail: "user@example.com",
+            customerAvatarUrl: "https://example.com/avatar.png",
+            customerName: "Jane Doe"
+        )
         
         return true
     }
     
     // Handle deep links for attribution
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-        LyncAttribution.handleDeepLink(url)
+        // (Deep link handling code here)
         return true
     }
 }
 ```
 
-### 4. Track Events
+### 4. Track Events (with Customer Info)
 
 ```swift
 // Track user registration
-LyncAttribution.trackRegistration(
-    customerId: "user123",
-    customerEmail: "user@example.com"
+Lync.shared.trackRegistration(
+    customerExternalId: "user123",
+    customerEmail: "user@example.com",
+    customerAvatarUrl: "https://example.com/avatar.png",
+    customerName: "Jane Doe"
 )
 
 // Track custom events
-LyncAttribution.trackEvent(
-    type: .custom,
-    name: "premium_upgrade",
-    customProperties: ["plan": "yearly"]
+Lync.shared.trackCustomEvent(
+    "premium_upgrade",
+    properties: ["plan": "yearly"],
+    customerExternalId: "user123",
+    customerEmail: "user@example.com",
+    customerAvatarUrl: "https://example.com/avatar.png",
+    customerName: "Jane Doe"
 )
 ```
 
 ## Alternative Configuration
 
-If you prefer programmatic configuration:
-
-```swift
-LyncAttribution.configure(
-    apiBaseURL: "https://your-api-domain.com",
-    entityId: "your-entity-id",
-    apiKey: "sk_live_your_api_key",
-    debug: true
-)
-```
+If you prefer Info.plist configuration, you can still use it (see previous instructions), but programmatic configuration is recommended for passing customer info.
 
 ## Attribution Flow
 
@@ -139,16 +145,8 @@ If your marketing campaigns use deep links that open your app after install:
 ```swift
 // In AppDelegate or SceneDelegate
 func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-    
     // Extract click_id from deep link
-    if let clickId = LyncAttribution.extractClickId(from: url) {
-        // Store the click_id for attribution
-        attribution.setClickId(clickId)
-        
-        // Track install with attribution
-        attribution.trackInstall(clickId: clickId)
-    }
-    
+    // (Deep link handling code here)
     return true
 }
 ```
@@ -245,14 +243,13 @@ The SDK sends data to your `/api/track/mobile` endpoint. Make sure your API is c
 ### Custom Configuration
 
 ```swift
-let config = LyncAttribution.Config(
-    apiBaseURL: "https://api.yourdomain.com",
-    entityId: "entity_123",
-    apiKey: "sk_test_123", // For authenticated requests
+let config = Config(
+    apiKey: "sk_test_123",
+    baseURL: URL(string: "https://api.yourdomain.com")!,
     debug: false // Disable debug logs in production
 )
 
-let attribution = LyncAttribution(config: config)
+Lync.shared.configure(with: config)
 ```
 
 ### Batch Event Tracking
@@ -263,33 +260,21 @@ For apps that need to track multiple events:
 // Track multiple events for the same user
 let userId = "user123"
 
-attribution.trackEvent(type: .custom, name: "Onboarding Complete", customerId: userId)
-attribution.trackEvent(type: .custom, name: "First Purchase", customerId: userId)
-attribution.trackEvent(type: .custom, name: "Subscription", customerId: userId)
+Lync.shared.trackCustomEvent("Onboarding Complete", customerExternalId: userId)
+Lync.shared.trackCustomEvent("First Purchase", customerExternalId: userId)
+Lync.shared.trackCustomEvent("Subscription", customerExternalId: userId)
 ```
 
 ### Error Handling
 
 ```swift
-attribution.trackInstall { result in
+// Example error handling for event tracking
+Lync.shared.trackInstall { result in
     switch result {
     case .success:
-        // Event tracked successfully
         print("✅ Event tracked")
-        
     case .failure(let error):
-        if let attributionError = error as? LyncAttributionError {
-            switch attributionError {
-            case .invalidURL:
-                print("❌ Invalid API URL configured")
-            case .invalidResponse:
-                print("❌ Invalid response from server")
-            case .apiError(let code, let message):
-                print("❌ API Error \(code): \(message)")
-            }
-        } else {
-            print("❌ Network error: \(error)")
-        }
+        print("❌ Tracking failed: \(error)")
     }
 }
 ```
@@ -301,22 +286,22 @@ attribution.trackInstall { result in
 Enable debug mode to see detailed logs:
 
 ```swift
-let config = LyncAttribution.Config(
-    apiBaseURL: "https://your-test-api.com",
-    entityId: "test_entity",
+let config = Config(
+    apiKey: "sk_test_123",
+    baseURL: URL(string: "https://your-test-api.com")!,
     debug: true // Enable detailed logging
 )
+Lync.shared.configure(with: config)
 ```
 
 You'll see logs like:
 ```
-🚀 LyncAttribution initialized
-📍 API URL: https://your-api.com
-🏢 Entity ID: entity_123
-📤 Sending event to: https://your-api.com/api/track/mobile
-📦 Payload: {"entity_id":"entity_123",...}
-📥 Response status: 200
-✅ Event tracked: install - App Install
+🔗 Lync SDK initialized with base URL: https://your-api.com
+🔗 Click ID: ...
+🔗 Lync ID: ...
+🔗 Sending event to: https://your-api.com/api/track/mobile
+🔗 Payload: {...}
+✅ Event sent successfully
 ```
 
 ### Testing Attribution
@@ -336,12 +321,12 @@ If you're migrating from another attribution SDK:
 // Replace your old SDK initialization
 // OLD: Adjust.appDidLaunch(adjustConfig)
 // NEW: 
-attribution.trackInstall()
+Lync.shared.trackInstall()
 
 // Replace event tracking
 // OLD: Adjust.trackEvent(adjustEvent)  
 // NEW:
-attribution.trackEvent(type: .custom, name: "Event Name")
+Lync.shared.trackCustomEvent("Event Name")
 ```
 
 ## Troubleshooting
@@ -349,7 +334,7 @@ attribution.trackEvent(type: .custom, name: "Event Name")
 ### Common Issues
 
 **Events not appearing in dashboard:**
-- Check your `entityId` is correct
+- Check your API key is correct
 - Verify your API endpoint is working
 - Enable debug mode to see network requests
 - Check your server logs
@@ -365,7 +350,7 @@ attribution.trackEvent(type: .custom, name: "Event Name")
 
 ### Debug Checklist
 
-- [ ] SDK initialized with correct `apiBaseURL` and `entityId`
+- [ ] SDK initialized with correct `apiKey` and `baseURL`
 - [ ] Network connection available
 - [ ] API endpoint responding with 200 status
 - [ ] Debug mode enabled to see detailed logs
