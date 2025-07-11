@@ -151,7 +151,7 @@ public struct DeviceInfo {
             preferredLanguages: Locale.preferredLanguages,
             regionCode: locale.regionCode,
             currencyCode: locale.currencyCode,
-            calendarIdentifier: locale.calendar.identifier.rawValue,
+            calendarIdentifier: String(describing: locale.calendar.identifier),
             deviceOrientation: DeviceUtils.getDeviceOrientation(device.orientation),
             interfaceOrientation: DeviceUtils.getInterfaceOrientation(),
             userInterfaceIdiom: DeviceUtils.getUserInterfaceIdiom(device.userInterfaceIdiom),
