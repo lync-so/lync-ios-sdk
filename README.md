@@ -1,4 +1,4 @@
-# Lync iOS SDK
+# Lync iOS SDK 0.0.1
 
 Super lean attribution tracking for iOS apps. Track app installs, user registrations, and custom events with just a few lines of code.
 
